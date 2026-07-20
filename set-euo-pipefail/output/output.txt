@@ -1,0 +1,49 @@
+====================================================================
+set -euo pipefail - why your shell script lies about success
+====================================================================
+
+>>> WITHOUT the flags
+--------------------------------------------------------------------
+  [1] extracting...
+  [2] counting rows...
+      rows found: 
+  [3] loading...
+  [4] done - load complete
+--------------------------------------------------------------------
+exit code: 0
+>>> The scheduler sees 0. It marks this run GREEN.
+>>> Three commands failed. It reported 'load complete'.
+
+
+>>> WITH set -euo pipefail
+--------------------------------------------------------------------
+  [1] extracting...
+--------------------------------------------------------------------
+exit code: 1
+>>> Non-zero. The scheduler sees a FAILURE and alerts.
+>>> It stopped at the first real problem instead of pretending.
+
+====================================================================
+Same logic. Same bugs. One line of difference.
+
+  -e            stop on the first failing command
+  -u            stop when an unset variable is used (catches typos)
+  -o pipefail   a pipeline is only as successful as its weakest stage
+
+Without them, this script:
+  - failed to read a missing file          -> carried on
+  - printed an unset variable as empty     -> carried on
+  - ran a pipeline whose first stage died  -> carried on
+  - exited 0 and announced "load complete"
+
+That green tick in your scheduler is the most expensive lie in data
+engineering, because nobody investigates a job that succeeded.
+
+One caveat worth knowing: -e is deliberately ignored in some contexts (an if
+condition, a && chain, a function in a test). It is insurance, not a force
+field. When you genuinely expect a command to fail, say so explicitly:
+
+  set +e; risky_command; rc=$?; set -e
+  # or
+  risky_command || true
+====================================================================

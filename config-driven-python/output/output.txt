@@ -1,0 +1,85 @@
+First run: creating a local .venv (nothing installed system-wide)...
+====================================================================
+CONFIG-DRIVEN PYTHON - one codebase, four resolutions
+====================================================================
+
+>>> 1. dev (the default)
+    $ python3 pipeline.py --env dev
+
+  environment : dev
+  setting       value                       resolved from
+  --------------------------------------------------------------
+  source_path   data/inbound/dev            config[dev]
+  target_table  customer_dim                defaults
+  batch_size    1000                        defaults
+  log_level     DEBUG                       config[dev]
+  dry_run       True                        config[dev]
+
+  db_password   (not set)                   never in config
+
+  dry_run=True -> would process, writing nothing.
+
+
+>>> 2. prod - same command, different env block
+    $ python3 pipeline.py --env prod
+
+  environment : prod
+  setting       value                       resolved from
+  --------------------------------------------------------------
+  source_path   s3://example-prod/inbound   config[prod]
+  target_table  customer_dim                defaults
+  batch_size    50000                       config[prod]
+  log_level     WARNING                     config[prod]
+  dry_run       False                       defaults
+
+  db_password   (not set)                   never in config
+
+  Processing s3://example-prod/inbound -> customer_dim in batches of 50000
+
+
+>>> 3. prod, with an env-var override (how a scheduler does it)
+    $ PIPELINE_BATCH_SIZE=99 PIPELINE_DB_PASSWORD=hunter2 python3 pipeline.py --env prod
+
+  environment : prod
+  setting       value                       resolved from
+  --------------------------------------------------------------
+  source_path   s3://example-prod/inbound   config[prod]
+  target_table  customer_dim                defaults
+  batch_size    99                          env[PIPELINE_BATCH_SIZE]
+  log_level     WARNING                     config[prod]
+  dry_run       False                       defaults
+
+  db_password   ********                    env[PIPELINE_DB_PASSWORD]
+
+  Processing s3://example-prod/inbound -> customer_dim in batches of 99
+
+
+>>> 4. prod, with a CLI override (how you do it at 2am)
+    $ python3 pipeline.py --env prod --batch-size 1 --dry-run
+
+  environment : prod
+  setting       value                       resolved from
+  --------------------------------------------------------------
+  source_path   s3://example-prod/inbound   config[prod]
+  target_table  customer_dim                defaults
+  batch_size    1                           cli
+  log_level     WARNING                     config[prod]
+  dry_run       True                        cli
+
+  db_password   (not set)                   never in config
+
+  dry_run=True -> would process, writing nothing.
+
+====================================================================
+Four different behaviours. pipeline.py was never edited, and never once
+mentions dev, test or prod.
+
+  defaults  ->  config[env]  ->  env vars  ->  CLI flags
+  (lowest precedence)                          (highest)
+
+Note the last column: every value tells you where it came from. When a run
+misbehaves at 2am, that column is the whole investigation.
+
+And the password never appears in config.yaml. Secrets come from the
+environment - config is for settings, not credentials.
+====================================================================

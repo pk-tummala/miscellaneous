@@ -1,0 +1,22 @@
+# config.yaml — the only file that knows about environments.
+# The code below never mentions dev, test or prod. That's the point.
+
+defaults:
+  source_path: data/inbound
+  target_table: customer_dim
+  batch_size: 1000
+  log_level: INFO
+  dry_run: false
+
+environments:
+  dev:
+    source_path: data/inbound/dev
+    log_level: DEBUG
+    dry_run: true
+  test:
+    source_path: s3://example-test/inbound
+    batch_size: 5000
+  prod:
+    source_path: s3://example-prod/inbound
+    batch_size: 50000
+    log_level: WARNING

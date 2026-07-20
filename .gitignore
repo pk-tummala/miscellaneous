@@ -23,17 +23,17 @@ ENV/
 .env.*
 *.local
 
-# ---- Generated output ----
-output/*
-!output/.gitkeep
+# ---- Generated runtime output ----
+# Committed sample outputs (e.g. output/output.txt) are kept intentionally;
+# only genuine runtime artefacts are ignored.
 *.log
 *.tmp
 tmp_*
 *.html
+*.psv
 
 # ---- OS noise ----
 .DS_Store
-.DS_Store?
 ._*
 Thumbs.db
 desktop.ini
