@@ -1,85 +1,87 @@
 First run: creating a local .venv (nothing installed system-wide)...
 ====================================================================
-CONFIG-DRIVEN PYTHON - one codebase, four resolutions
+CONFIG-DRIVEN PYTHON - the same code, run four different ways
 ====================================================================
 
->>> 1. dev (the default)
+>>> 1. TEST environment - just the defaults
     $ python3 pipeline.py --env dev
 
   environment : dev
-  setting       value                       resolved from
+  setting       value                       came from
   --------------------------------------------------------------
-  source_path   data/inbound/dev            config[dev]
-  target_table  customer_dim                defaults
-  batch_size    1000                        defaults
-  log_level     DEBUG                       config[dev]
-  dry_run       True                        config[dev]
+  source_path   data/inbound/dev            dev settings
+  target_table  customer_dim                default
+  batch_size    1000                        default
+  log_level     DEBUG                       dev settings
+  dry_run       True                        dev settings
 
-  db_password   (not set)                   never in config
+  db_password   (not set)                   never in the settings file
 
   dry_run=True -> would process, writing nothing.
 
 
->>> 2. prod - same command, different env block
+>>> 2. LIVE environment - same command, different settings
     $ python3 pipeline.py --env prod
 
   environment : prod
-  setting       value                       resolved from
+  setting       value                       came from
   --------------------------------------------------------------
-  source_path   s3://example-prod/inbound   config[prod]
-  target_table  customer_dim                defaults
-  batch_size    50000                       config[prod]
-  log_level     WARNING                     config[prod]
-  dry_run       False                       defaults
+  source_path   s3://example-prod/inbound   prod settings
+  target_table  customer_dim                default
+  batch_size    50000                       prod settings
+  log_level     WARNING                     prod settings
+  dry_run       False                       default
 
-  db_password   (not set)                   never in config
+  db_password   (not set)                   never in the settings file
 
   Processing s3://example-prod/inbound -> customer_dim in batches of 50000
 
 
->>> 3. prod, with an env-var override (how a scheduler does it)
+>>> 3. LIVE, with a quick override from the environment (how a scheduler slips a value in)
     $ PIPELINE_BATCH_SIZE=99 PIPELINE_DB_PASSWORD=hunter2 python3 pipeline.py --env prod
 
   environment : prod
-  setting       value                       resolved from
+  setting       value                       came from
   --------------------------------------------------------------
-  source_path   s3://example-prod/inbound   config[prod]
-  target_table  customer_dim                defaults
-  batch_size    99                          env[PIPELINE_BATCH_SIZE]
-  log_level     WARNING                     config[prod]
-  dry_run       False                       defaults
+  source_path   s3://example-prod/inbound   prod settings
+  target_table  customer_dim                default
+  batch_size    99                          env var PIPELINE_BATCH_SIZE
+  log_level     WARNING                     prod settings
+  dry_run       False                       default
 
-  db_password   ********                    env[PIPELINE_DB_PASSWORD]
+  db_password   ********                    env var PIPELINE_DB_PASSWORD
 
   Processing s3://example-prod/inbound -> customer_dim in batches of 99
 
 
->>> 4. prod, with a CLI override (how you do it at 2am)
+>>> 4. LIVE, with a one-off override typed on the command line
     $ python3 pipeline.py --env prod --batch-size 1 --dry-run
 
   environment : prod
-  setting       value                       resolved from
+  setting       value                       came from
   --------------------------------------------------------------
-  source_path   s3://example-prod/inbound   config[prod]
-  target_table  customer_dim                defaults
-  batch_size    1                           cli
-  log_level     WARNING                     config[prod]
-  dry_run       True                        cli
+  source_path   s3://example-prod/inbound   prod settings
+  target_table  customer_dim                default
+  batch_size    1                           command line
+  log_level     WARNING                     prod settings
+  dry_run       True                        command line
 
-  db_password   (not set)                   never in config
+  db_password   (not set)                   never in the settings file
 
   dry_run=True -> would process, writing nothing.
 
 ====================================================================
-Four different behaviours. pipeline.py was never edited, and never once
-mentions dev, test or prod.
+Four different behaviours - and the program was never edited. Only the
+settings changed. It never once mentions "test" or "live".
 
-  defaults  ->  config[env]  ->  env vars  ->  CLI flags
-  (lowest precedence)                          (highest)
+A setting can come from four places. The most specific one wins:
 
-Note the last column: every value tells you where it came from. When a run
-misbehaves at 2am, that column is the whole investigation.
+  default  ->  this environment's settings  ->  environment variable  ->  command line
+  (base value)                                                          (wins)
 
-And the password never appears in config.yaml. Secrets come from the
-environment - config is for settings, not credentials.
+The "came from" column tells you which one won for every setting - so when a
+run misbehaves, you look instead of guessing.
+
+And the password never appears in the settings file. Secrets come from the
+environment. The settings file is for settings, not passwords.
 ====================================================================

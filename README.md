@@ -49,7 +49,7 @@ Each folder has its own README with the exact command to run it (most are `./run
 ### Python & PySpark
 | Folder | What it does |
 |--------|--------------|
-| [`config-driven-python/`](config-driven-python/config-driven-python-README.md) | One pipeline, four environments, zero code edits. Layered config resolution (defaults → env block → env vars → CLI) that reports where every value came from. |
+| [`config-driven-python/`](config-driven-python/config-driven-python-README.md) | Keep the settings that change between test and live out of your code, so the same pipeline runs anywhere. Shows the four places a setting can come from — and which one wins. |
 
 ### Shell, orchestration & platform
 | Folder | What it does |

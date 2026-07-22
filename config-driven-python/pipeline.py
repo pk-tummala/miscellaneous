@@ -39,19 +39,19 @@ def load_config(path, env):
 
     # layer 1: defaults
     resolved = dict(raw.get("defaults", {}))
-    source = {k: "defaults" for k in resolved}
+    source = {k: "default" for k in resolved}
 
     # layer 2: the environment block
     for key, val in raw.get("environments", {}).get(env, {}).items():
         resolved[key] = val
-        source[key] = f"config[{env}]"
+        source[key] = f"{env} settings"
 
     # layer 3: environment variables
     for key in SETTINGS:
         env_key = f"PIPELINE_{key.upper()}"
         if env_key in os.environ:
             resolved[key] = coerce(os.environ[env_key])
-            source[key] = f"env[{env_key}]"
+            source[key] = f"env var {env_key}"
 
     return resolved, source
 
@@ -77,10 +77,10 @@ def main(argv=None):
         val = getattr(args, key, None)
         if val is not None:
             resolved[key] = val
-            source[key] = "cli"
+            source[key] = "command line"
 
     print(f"\n  environment : {args.env}")
-    print(f"  {'setting':<14}{'value':<28}resolved from")
+    print(f"  {'setting':<14}{'value':<28}came from")
     print("  " + "-" * 62)
     for key in SETTINGS:
         print(f"  {key:<14}{str(resolved[key]):<28}{source[key]}")
@@ -88,7 +88,7 @@ def main(argv=None):
     # Credentials NEVER come from config. Environment only.
     secret = os.environ.get("PIPELINE_DB_PASSWORD")
     print(f"\n  db_password   {'*' * 8 if secret else '(not set)':<28}"
-          f"{'env[PIPELINE_DB_PASSWORD]' if secret else 'never in config'}")
+          f"{'env var PIPELINE_DB_PASSWORD' if secret else 'never in the settings file'}")
 
     if resolved["dry_run"]:
         print("\n  dry_run=True -> would process, writing nothing.\n")

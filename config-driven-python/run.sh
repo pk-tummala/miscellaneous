@@ -32,36 +32,38 @@ PY=.venv/bin/python
 
 line() { printf '=%.0s' {1..68}; echo; }
 
-line; echo "CONFIG-DRIVEN PYTHON - one codebase, four resolutions"; line
+line; echo "CONFIG-DRIVEN PYTHON - the same code, run four different ways"; line
 
-echo; echo ">>> 1. dev (the default)"
+echo; echo ">>> 1. TEST environment - just the defaults"
 echo "    \$ python3 pipeline.py --env dev"
 "$PY" pipeline.py --env dev
 
-echo; echo ">>> 2. prod - same command, different env block"
+echo; echo ">>> 2. LIVE environment - same command, different settings"
 echo "    \$ python3 pipeline.py --env prod"
 "$PY" pipeline.py --env prod
 
-echo; echo ">>> 3. prod, with an env-var override (how a scheduler does it)"
+echo; echo ">>> 3. LIVE, with a quick override from the environment (how a scheduler slips a value in)"
 echo "    \$ PIPELINE_BATCH_SIZE=99 PIPELINE_DB_PASSWORD=hunter2 python3 pipeline.py --env prod"
 PIPELINE_BATCH_SIZE=99 PIPELINE_DB_PASSWORD=hunter2 "$PY" pipeline.py --env prod
 
-echo; echo ">>> 4. prod, with a CLI override (how you do it at 2am)"
+echo; echo ">>> 4. LIVE, with a one-off override typed on the command line"
 echo "    \$ python3 pipeline.py --env prod --batch-size 1 --dry-run"
 "$PY" pipeline.py --env prod --batch-size 1 --dry-run
 
 line
 cat <<'TXT'
-Four different behaviours. pipeline.py was never edited, and never once
-mentions dev, test or prod.
+Four different behaviours - and the program was never edited. Only the
+settings changed. It never once mentions "test" or "live".
 
-  defaults  ->  config[env]  ->  env vars  ->  CLI flags
-  (lowest precedence)                          (highest)
+A setting can come from four places. The most specific one wins:
 
-Note the last column: every value tells you where it came from. When a run
-misbehaves at 2am, that column is the whole investigation.
+  default  ->  this environment's settings  ->  environment variable  ->  command line
+  (base value)                                                          (wins)
 
-And the password never appears in config.yaml. Secrets come from the
-environment - config is for settings, not credentials.
+The "came from" column tells you which one won for every setting - so when a
+run misbehaves, you look instead of guessing.
+
+And the password never appears in the settings file. Secrets come from the
+environment. The settings file is for settings, not passwords.
 TXT
 line
