@@ -61,9 +61,11 @@ WHEN NOT MATCHED THEN
     VALUES (s.customer_id, s.full_name, s.balance, s.updated_at);
 ```
 
-Oracle wraps the `ON` clause in brackets, and uniquely lets you hang a
-`DELETE WHERE` off the `WHEN MATCHED` branch — handy for purging rows that a
-soft-delete flag has just retired.
+Oracle wraps the `ON` clause in brackets. Its `DELETE` is distinctive too — a
+`DELETE WHERE` attached to the `UPDATE` that removes only the rows the merge just
+updated (it evaluates the post-update values), handy for purging rows a soft-delete
+flag has just retired. Most engines can `DELETE` in a matched branch; Oracle's
+twist is coupling the `DELETE` to the `UPDATE`.
 
 **Teradata**
 
@@ -80,9 +82,13 @@ WHEN NOT MATCHED THEN
     VALUES (s.customer_id, s.full_name, s.balance, s.updated_at);
 ```
 
-The catch is architectural: the `ON` clause **must** include the target's primary
-index. Teradata needs to know the row lives on the same AMP as the source row
-before it will merge it. Miss it and you get an error, not a slow query.
+The catch is subtle. The `ON` clause **must** use the target's primary index —
+**and** the match must resolve to a *single* target row. If the target's primary
+index is non-unique (a NUPI), the PI alone isn't enough: several rows can share
+that value, so you add extra conditions to pin the match to one row. (Matching the
+PI is also what lets Teradata run the MERGE as an efficient single-AMP operation,
+but the rule you must satisfy is: identify exactly one target row.) Miss it and you
+get an error, not a slow query.
 
 **Snowflake**
 
@@ -133,6 +139,14 @@ Break that and the four engines stop agreeing:
 
 Three fail loudly. One fails quietly. The quiet one is the dangerous one: the job
 goes green, the pipeline reports success, and the number is simply wrong.
+
+(Two footnotes for precision. On Delta, the error is
+`DELTA_MULTIPLE_SOURCE_ROW_MATCHING_TARGET_ROW_IN_MERGE`; since Databricks Runtime
+16.1 the merge *can* succeed if a `WHEN MATCHED` condition narrows the duplicate
+matches down to exactly one row — but the case here, two rows for one key with no
+such condition, still errors. The DuckDB behaviour was confirmed by running this
+demo on DuckDB 1.5; the other three engines' behaviour is from their official
+docs.)
 
 When you run `./run.sh`, it prints the **whole** `customer_dim` after the broken
 merge — not just Bob's row. That's deliberate. The table still has four rows, no
