@@ -24,5 +24,6 @@ echo "      rows found: $ROW_COUNT"
 
 echo "  [3] loading..."
  cat data/does_not_exist.csv | wc -l > data/loaded.txt
+echo "      rows loaded: $(cat data/loaded.txt)"
 
 echo "  [4] done - load complete"

@@ -28,5 +28,6 @@ echo "  [3] loading..."
 # pipeline reports only the LAST command's status, so this reads as success
 # and the row count is silently written as 0.
  cat data/does_not_exist.csv | wc -l > data/loaded.txt
+echo "      rows loaded: $(cat data/loaded.txt)"
 
 echo "  [4] done - load complete"

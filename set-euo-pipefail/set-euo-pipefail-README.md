@@ -53,8 +53,8 @@ bugs planted in it:
 
 Two of those are outright command failures (both `cat` calls exit `1`); the
 third isn't a failure at all — it's a variable that silently expands to nothing,
-which is arguably worse. The script still prints **"done — load complete"** and
-exits **`0`**, and records the row count as `0`. To a scheduler, that run was a
+which is arguably worse. The script reports **`rows loaded: 0`**, prints
+**"done — load complete"**, and exits **`0`**. To a scheduler, that run was a
 success.
 
 Note what that means: the `cat:` errors *are* right there in the log. Nobody reads

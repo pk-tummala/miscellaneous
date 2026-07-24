@@ -12,6 +12,7 @@ cat: data/inbound/yesterday.csv: No such file or directory
       rows found: 
   [3] loading...
 cat: data/does_not_exist.csv: No such file or directory
+      rows loaded: 0
   [4] done - load complete
 ----------------------------------------------------------------------
 exit code: 0
