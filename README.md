@@ -4,21 +4,25 @@
 ![Languages](https://img.shields.io/badge/languages-SQL%20%7C%20Python%20%7C%20Bash-1f425f.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
-Runnable data-engineering patterns, gotchas and utilities — each one small enough
-to read in a sitting and self-contained enough to clone and run in seconds.
+Runnable data-engineering patterns, gotchas and utilities — plus the occasional
+long-form design paper. Most entries are small enough to read in a sitting and
+self-contained enough to clone and run in seconds.
 
 Some folders are working utilities I've built and used. Most are minimal, runnable
 demonstrations of a single idea — a SQL pattern, a Spark internal, a shell habit, a
 cloud technique — the kind of thing that's easy to assert in a post and far more
-convincing when you can run it and watch it happen.
+convincing when you can run it and watch it happen. A few are longer design papers,
+where the problem is too big for a snippet and the reasoning *is* the deliverable;
+those still ship runnable SQL alongside the prose.
 
-Each folder stands alone: its own README, its own sample data, its own captured
-output. Nothing here depends on anything else here.
+Each folder stands alone: its own README, its own sample data or schema, its own
+captured output. Nothing here depends on anything else here.
 
 ## Scope
 
 The repo grows alongside an ongoing data-engineering writing series — each piece
-that includes code drops its runnable snippet here. It spans four areas:
+that includes code drops its runnable snippet here, and longer design work lands as
+a paper. It spans four areas:
 
 - **SQL & data modelling** — the ANSI core and the dialect differences (Oracle ·
   Teradata · Snowflake · Delta), window functions, dimensional modelling
@@ -39,7 +43,12 @@ IntelliJ walkthrough.
 
 ## Contents
 
-Each folder has its own README with the exact command to run it (most are `./run.sh`).
+Each folder has its own README with the exact command to run it (most are `bash run.sh`).
+
+### Design & architecture
+| Folder | What it does |
+|--------|--------------|
+| [`metadata-driven-warehouse-extraction/`](metadata-driven-warehouse-extraction/metadata-driven-warehouse-extraction-README.md) | A 34-page white paper on getting a whole data warehouse out in files — roughly a thousand tables, tens of terabytes, a ten-hour nightly window. Covers the metadata control schema, watermarks that can't skip data, restart and reconciliation. Ships the six-table schema and the operational queries as runnable PostgreSQL. |
 
 ### SQL & data modelling
 | Folder | What it does |
@@ -58,6 +67,18 @@ Each folder has its own README with the exact command to run it (most are `./run
 | [`set-euo-pipefail/`](set-euo-pipefail/set-euo-pipefail-README.md) | The same load script twice — one exits 0 after three failures and reports success, the other doesn't. Three characters of insurance. |
 
 _New folders land as the series continues._
+
+### Folder layout
+
+Two shapes, depending on what the folder is.
+
+**Runnable demos** — committed inputs in `config/`, the captured output in
+`output/`, and anything a run generates in `data/`, which is git-ignored and
+disposable (`rm -rf data` resets any demo). Nothing a demo needs is ever written
+to `data/`.
+
+**Document-led folders** — the paper in `docs/` (Markdown, PDF and Word), its
+diagrams in `images/`, and any runnable schema in `sql/`.
 
 ## Philosophy
 
