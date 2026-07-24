@@ -2,7 +2,7 @@
 
 **A metadata-driven pattern for large-scale extraction and migration.**
 
-By Pavan Kumar Tummala
+---
 
 Sooner or later most data warehouses have to be copied somewhere else — a platform
 migration, a cloud change, a merger, an archive obligation. The requirement usually
@@ -66,7 +66,6 @@ inserting one row — no code change, no release, no deployment.
 | `docs/…whitepaper.docx` | Word version, imports cleanly into Confluence |
 | `images/` | The ten diagrams, PNG |
 | `sql/` | The metadata schema, runnable |
-| `LICENSE` | MIT |
 
 ---
 
@@ -121,12 +120,3 @@ rather than written from memory. That check corrected several things, including:
 
 Snowflake, BigQuery and Synapse commands in Appendix D were likewise verified.
 Throughput figures in Section 9.1 are explicitly illustrative — measure your own.
-
----
-
-## Licence
-
-MIT — see [`LICENSE`](LICENSE). Use the schema, adapt the design, build on it.
-Attribution appreciated but not required beyond the terms of the licence.
-
-Copyright (c) 2026 Pavan Kumar Tummala
