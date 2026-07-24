@@ -1,49 +1,97 @@
-====================================================================
-set -euo pipefail - why your shell script lies about success
-====================================================================
+======================================================================
+set -euo pipefail - why a broken script can still report success
+======================================================================
+
+PART 1 - the same load script, run two ways
 
 >>> WITHOUT the flags
---------------------------------------------------------------------
-  [1] extracting...
+----------------------------------------------------------------------
+  [1] extracting yesterday's file...
+cat: data/inbound/yesterday.csv: No such file or directory
   [2] counting rows...
       rows found: 
   [3] loading...
+cat: data/does_not_exist.csv: No such file or directory
   [4] done - load complete
---------------------------------------------------------------------
+----------------------------------------------------------------------
 exit code: 0
->>> The scheduler sees 0. It marks this run GREEN.
->>> Three commands failed. It reported 'load complete'.
-
+>>> Two commands failed outright, a third silently produced nothing.
+>>> It printed 'load complete' and exited 0 anyway.
+>>> A scheduler reads that 0 and marks the run GREEN.
 
 >>> WITH set -euo pipefail
---------------------------------------------------------------------
-  [1] extracting...
---------------------------------------------------------------------
+----------------------------------------------------------------------
+  [1] extracting yesterday's file...
+cat: data/inbound/yesterday.csv: No such file or directory
+----------------------------------------------------------------------
 exit code: 1
->>> Non-zero. The scheduler sees a FAILURE and alerts.
->>> It stopped at the first real problem instead of pretending.
+>>> Stopped at the FIRST failure and exited non-zero.
+>>> A scheduler reads that and raises an ALERT.
 
-====================================================================
-Same logic. Same bugs. One line of difference.
+======================================================================
+PART 2 - each flag on its own
+======================================================================
 
-  -e            stop on the first failing command
-  -u            stop when an unset variable is used (catches typos)
-  -o pipefail   a pipeline is only as successful as its weakest stage
+Note what just happened above: -e stopped the script at bug 1, so bugs 2 and 3
+were never reached. That is correct behaviour - but it means you have not yet
+SEEN what -u and pipefail do. So here is each flag, isolated and proved.
 
-Without them, this script:
-  - failed to read a missing file          -> carried on
-  - printed an unset variable as empty     -> carried on
-  - ran a pipeline whose first stage died  -> carried on
-  - exited 0 and announced "load complete"
+>>> -e   stop as soon as a command fails
+----------------------------------------------------------------------
+   $ cat missing_file; echo "still running"          # no -e
+   still running  <- carried on after the failure
 
-That green tick in your scheduler is the most expensive lie in data
-engineering, because nobody investigates a job that succeeded.
+   $ set -e; cat missing_file; echo "still running"  # with -e
+   (nothing printed - the script stopped) exit code: 1
 
-One caveat worth knowing: -e is deliberately ignored in some contexts (an if
-condition, a && chain, a function in a test). It is insurance, not a force
-field. When you genuinely expect a command to fail, say so explicitly:
+>>> -u   stop if a variable was never set
+----------------------------------------------------------------------
+   $ ROWCOUNT=5; echo "rows: $ROW_COUNT"             # no -u   (typo!)
+   rows: []  <- empty, and no complaint
 
-  set +e; risky_command; rc=$?; set -e
-  # or
-  risky_command || true
-====================================================================
+   $ set -u; ROWCOUNT=5; echo "rows: $ROW_COUNT"     # with -u
+   data/u_on.sh: line 4: ROW_COUNT: unbound variable
+   exit code: 1
+
+>>> -o pipefail   judge a pipeline by ANY failing stage
+----------------------------------------------------------------------
+   $ cat missing_file | wc -l                        # no pipefail
+   exit code: 0  <- SUCCESS, and it wrote 0 rows
+
+   $ set -o pipefail; cat missing_file | wc -l       # with pipefail
+   exit code: 1  <- the dead first stage is now visible
+
+======================================================================
+WHY THIS HAPPENS (straight from the bash manual)
+
+  * By default, a script keeps going after a command fails, and the script's
+    exit code is simply that of its LAST command. Here that was a successful
+    echo - so the script exited 0.
+
+  * By default, "the exit status of a pipeline is the exit status of the last
+    command in the pipeline". A dead first stage is invisible if the last
+    stage succeeds. With pipefail, the pipeline reports the rightmost
+    non-zero status instead - so the failure surfaces.
+
+  * By default, an unset variable expands to an empty string. -u turns that
+    into an error, which is what catches the ROWCOUNT / ROW_COUNT typo.
+
+THE HONEST CAVEAT
+
+  -e is insurance, not a force field. Bash deliberately IGNORES it when a
+  failure is already being handled: inside an if condition, in a while/until
+  test, on the left of && or ||, in any pipeline stage except the last, or
+  when the result is negated with !.
+
+  And -e cuts both ways: a command that legitimately returns non-zero will
+  also kill your script. grep exits 1 when it simply finds no match, so
+  "set -e; grep pattern file" stops the script on a perfectly normal
+  no-match. When you expect a non-zero result, say so explicitly:
+
+      set +e; risky_command; rc=$?; set -e
+      risky_command || true
+      if ! grep -q pattern file; then ...; fi
+
+  Being explicit about the failures you tolerate is the whole point. The
+  flags stop you tolerating the ones you never meant to.
+======================================================================
