@@ -1,0 +1,177 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Event-driven ingestion, one stack. A file lands in S3 -> EventBridge -> Step
+  Functions -> EMR Serverless (PySpark). Creates the bucket (with EventBridge on),
+  the IAM roles, the EMR Serverless application, the state machine, and the rule.
+  After deploying, upload the PySpark job to the bucket's code/ prefix and drop a
+  file into incoming/.
+
+Parameters:
+  ReleaseLabel:
+    Type: String
+    Default: emr-7.2.0
+    Description: EMR release for the Serverless Spark application. Bump this if the
+      region doesn't offer this version.
+  IncomingPrefix:
+    Type: String
+    Default: incoming/
+    Description: S3 key prefix whose new objects trigger the pipeline.
+
+Resources:
+
+  # The landing bucket, with EventBridge delivery switched on (one toggle).
+  IngestBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+
+  # Role the EMR Serverless JOB assumes: read the landing file + job code, write curated.
+  EMRExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: emr-serverless.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: s3-read-write
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ s3:GetObject, s3:PutObject, s3:ListBucket ]
+                Resource:
+                  - !GetAtt IngestBucket.Arn
+                  - !Sub '${IngestBucket.Arn}/*'
+
+  # The serverless Spark application (auto-starts on job submit, auto-stops when idle).
+  SparkApp:
+    Type: AWS::EMRServerless::Application
+    Properties:
+      Name: carsales-ingest
+      ReleaseLabel: !Ref ReleaseLabel
+      Type: SPARK
+
+  # Role the STATE MACHINE assumes. The .sync pattern needs GetJobRun (to poll) and
+  # CancelJobRun, plus PassRole to hand the exec role to the job.
+  SfnRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: states.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: run-emr-serverless
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - emr-serverless:StartJobRun
+                  - emr-serverless:GetJobRun
+                  - emr-serverless:CancelJobRun
+                Resource:
+                  - !GetAtt SparkApp.Arn
+                  - !Sub '${SparkApp.Arn}/jobruns/*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt EMRExecRole.Arn
+              # The .sync pattern uses a Step Functions-managed EventBridge rule to
+              # receive job-completion events; the role must be allowed to create it.
+              - Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:PutTargets
+                  - events:DescribeRule
+                Resource: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForEMRServerless*'
+
+  # One task: run the PySpark job on EMR Serverless and wait (.sync). The new file's
+  # s3:// path is built from the EventBridge event's bucket name + object key.
+  IngestStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: carsales-ingest
+      RoleArn: !GetAtt SfnRole.Arn
+      DefinitionSubstitutions:
+        AppId: !GetAtt SparkApp.ApplicationId
+        ExecRoleArn: !GetAtt EMRExecRole.Arn
+        CodePath: !Sub 's3://${IngestBucket}/code/emr_serverless_job.py'
+      DefinitionString: |
+        {
+          "Comment": "Run an EMR Serverless PySpark job for each new S3 object.",
+          "StartAt": "RunJob",
+          "States": {
+            "RunJob": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::emr-serverless:startJobRun.sync",
+              "Parameters": {
+                "ApplicationId": "${AppId}",
+                "ExecutionRoleArn": "${ExecRoleArn}",
+                "Name": "carsales-ingest",
+                "JobDriver": {
+                  "SparkSubmit": {
+                    "EntryPoint": "${CodePath}",
+                    "EntryPointArguments.$": "States.Array(States.Format('s3://{}/{}', $.detail.bucket.name, $.detail.object.key))"
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+
+  # Role EventBridge assumes to start the state machine.
+  EventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: start-state-machine
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref IngestStateMachine
+
+  # Match new objects under incoming/ and start the state machine.
+  ObjectCreatedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Start the ingest pipeline when a file lands under the incoming prefix.
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref IngestBucket
+          object:
+            key:
+              - prefix: !Ref IncomingPrefix
+      Targets:
+        - Id: ingest-state-machine
+          Arn: !Ref IngestStateMachine
+          RoleArn: !GetAtt EventsRole.Arn
+
+Outputs:
+  BucketName:
+    Description: Upload the job to code/ and drop files into incoming/.
+    Value: !Ref IngestBucket
+  StateMachineArn:
+    Description: Watch runs here in the Step Functions console.
+    Value: !Ref IngestStateMachine

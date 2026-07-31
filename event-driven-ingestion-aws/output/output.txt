@@ -1,0 +1,31 @@
+======================================================================
+REACTING TO A FILE THAT LANDS:  polling  vs  event-driven
+======================================================================
+
+----------------------------------------------------------------------
+POLLING  (a cron-style timer checks the landing zone)
+----------------------------------------------------------------------
+  poll 1: landing zone empty — sleep 1s and check again
+  poll 2: landing zone empty — sleep 1s and check again
+  poll 3: landing zone empty — sleep 1s and check again
+  poll 4: found sample_listing.json  ->  start the job
+  => 3 idle checks before it was noticed. Each check ran on a timer,
+     whether or not anything had arrived — and the file waited up to a full
+     interval to be picked up.
+
+----------------------------------------------------------------------
+EVENT-DRIVEN  (the OS pushes a notification the moment a file lands)
+----------------------------------------------------------------------
+  watching landing/ ... blocked here, using no CPU, no timer
+  event received: sample_listing.json created  ->  start the job immediately
+  => 0 idle checks. The watch woke the instant the file landed.
+
+======================================================================
+Same picture, in the cloud (this folder's AWS build):
+  polling      = a cron job that lists an S3 prefix on a schedule, plus a
+                 cluster sitting idle between runs.
+  event-driven = S3 emits an 'Object Created' event to EventBridge, which
+                 starts a Step Functions run that fires an EMR Serverless
+                 job. Nothing polls; nothing idles; the file lands and the
+                 pipeline wakes up. See aws/ and the README.
+======================================================================
