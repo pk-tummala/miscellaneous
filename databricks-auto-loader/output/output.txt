@@ -1,0 +1,55 @@
+======================================================================
+CHECKPOINTED INGESTION - only new files are processed on each run
+(open-source Structured Streaming; the core idea Auto Loader is built on)
+======================================================================
+
+----------------------------------------------------------------------
+Day 1: a file with two records lands
+----------------------------------------------------------------------
+  files now in the lake : day1.json
+  rows processed THIS run: 2
+  total rows in target   : 2
+
+----------------------------------------------------------------------
+Day 2: a new file lands (one record)
+----------------------------------------------------------------------
+  files now in the lake : day1.json, day2.json
+  rows processed THIS run: 1
+  total rows in target   : 3
+
+----------------------------------------------------------------------
+Day 3: a new file lands (two records)
+----------------------------------------------------------------------
+  files now in the lake : day1.json, day2.json, day3.json
+  rows processed THIS run: 2
+  total rows in target   : 5
+
+----------------------------------------------------------------------
+Re-run: no new file
+----------------------------------------------------------------------
+  files now in the lake : day1.json, day2.json, day3.json
+  rows processed THIS run: 0
+  total rows in target   : 5
+
+======================================================================
+Read the 'rows processed THIS run' column: after day 1 it was 2, then each
+run touched ONLY the newly-arrived file (1, then 2), and the final re-run
+with no new files processed 0 - the checkpoint skipped everything already
+ingested. The lake is never re-read.
+
+----------------------------------------------------------------------
+Same filename re-lands - edited record + a new one
+----------------------------------------------------------------------
+  overwrote day1.json: sale_id 1 price 850000 -> 900000, plus a new sale_id 6
+  rows processed THIS run: 0
+  total rows in target   : 5
+  sale_id 1 price in target: 850000   <- the edit to 900000 was IGNORED
+  sale_id 6 rows in target : 0        <- the new record was IGNORED
+
+======================================================================
+Same filename, edited contents -> processed 0. Auto Loader ingests a file
+once, by its path, and treats it as immutable. To re-read modified files set
+cloudFiles.allowOverwrites=true (it re-reads the WHOLE file and appends, so
+you dedupe yourself); to APPLY updates, land new files and MERGE on a key.
+See the README, and auto_loader_databricks.py for the cloudFiles version.
+======================================================================

@@ -60,6 +60,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | Folder | What it does |
 |--------|--------------|
 | [`config-driven-python/`](config-driven-python/config-driven-python-README.md) | Keep the settings that change between test and live out of your code, so the same pipeline runs anywhere. Shows the four places a setting can come from — and which one wins. |
+| [`databricks-auto-loader/`](databricks-auto-loader/databricks-auto-loader-README.md) | Why listing a bucket to find new files stops scaling, and how Auto Loader's checkpoint fixes it. A runnable open-source proof that only new files are processed each run, plus the real `cloudFiles` code from a Databricks build. |
 
 ### Shell, orchestration & platform
 | Folder | What it does |
