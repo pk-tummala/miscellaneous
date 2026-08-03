@@ -55,6 +55,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 |--------|--------------|
 | [`merge-four-engines/`](merge-four-engines/merge-four-engines-README.md) | The same idempotent upsert in Oracle, Teradata, Snowflake and Delta — plus a runnable proof of the one condition idempotency depends on, and what happens when you break it. |
 | [`window-functions-mental-model/`](window-functions-mental-model/window-functions-mental-model-README.md) | The picture behind `OVER` / `PARTITION BY` / `ORDER BY` — why a window keeps every row where `GROUP BY` collapses them, and the frame trap that turns a group total into a running total the moment you add `ORDER BY`. |
+| [`qualify-clause/`](qualify-clause/qualify-clause-README.md) | Filter a window function directly with `QUALIFY` instead of wrapping it in a subquery. Shows the `WHERE` that's rejected, the old subquery, and the `QUALIFY` that replaces it — plus which engines support it. |
 
 ### Python & PySpark
 | Folder | What it does |
