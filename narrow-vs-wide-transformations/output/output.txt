@@ -1,0 +1,50 @@
+========================================================================
+NARROW vs WIDE TRANSFORMATIONS - does it shuffle?
+A shuffle moves data across the cluster. It is the expensive part,
+and in the physical plan it shows up as an "Exchange".
+========================================================================
+
+NARROW - each input partition feeds one output, no shuffle:
+  filter         no shuffle
+  select         no shuffle
+  withColumn     no shuffle
+  union          no shuffle
+  coalesce       no shuffle
+
+WIDE - needs a shuffle (data crosses the network):
+  groupBy + agg  shuffle
+  distinct       shuffle
+  orderBy        shuffle
+  join           shuffle
+  repartition    shuffle
+
+------------------------------------------------------------------------
+See it in the plan - the wide one has an Exchange, the narrow one doesn't:
+
+  filter (narrow):
+     *(1) Filter (isnotnull(amount#2L) AND (amount#2L > 100))
+     +- *(1) Scan ExistingRDD[region#0,product#1,amount#2L]
+
+  groupBy (wide):
+     +- HashAggregate(keys=[region#0], functions=[sum(amount#2L)], output=[region#0, sum(amount)#21L])
+        +- Exchange hashpartitioning(region#0, 4), ENSURE_REQUIREMENTS, [plan_id=*]
+           +- HashAggregate(keys=[region#0], functions=[partial_sum(amount#2L)], output=[region#0, sum#23L])
+              +- Project [region#0, amount#2L]
+                 +- Scan ExistingRDD[region#0,product#1,amount#2L]
+
+------------------------------------------------------------------------
+THE TRAP - these two look almost identical, but only one shuffles:
+
+  df.coalesce(2)    (narrow - just merges partitions in place)
+     Coalesce 2
+     +- *(1) Scan ExistingRDD[region#0,product#1,amount#2L]
+
+  df.repartition(2) (wide - a full shuffle)
+     +- Exchange RoundRobinPartitioning(2), REPARTITION_BY_NUM, [plan_id=*]
+        +- Scan ExistingRDD[region#0,product#1,amount#2L]
+
+========================================================================
+The rule: if it shuffles, Spark writes to disk and moves data over the
+network - that's a stage boundary, and it's what makes jobs slow at scale.
+Narrow chains pipeline together for free. Everything else is detail.
+========================================================================

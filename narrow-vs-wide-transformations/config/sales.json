@@ -1,0 +1,12 @@
+[
+  {"region": "North", "product": "Widget", "amount": 120},
+  {"region": "South", "product": "Gadget", "amount": 80},
+  {"region": "North", "product": "Gadget", "amount": 60},
+  {"region": "West",  "product": "Widget", "amount": 200},
+  {"region": "South", "product": "Widget", "amount": 90},
+  {"region": "East",  "product": "Gadget", "amount": 150},
+  {"region": "North", "product": "Cog",    "amount": 40},
+  {"region": "West",  "product": "Cog",    "amount": 70},
+  {"region": "East",  "product": "Widget", "amount": 110},
+  {"region": "South", "product": "Cog",    "amount": 30}
+]
