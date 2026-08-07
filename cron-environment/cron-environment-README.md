@@ -101,7 +101,4 @@ cron-environment/
 
 ---
 
-*Run on GNU bash 5.2 (Ubuntu 24.04). cron auto-setting only `SHELL=/bin/sh`, `LOGNAME`
-and `HOME`, and not sourcing login files, is from the `crontab(5)` man page; the minimal
-default `PATH` (typically `/usr/bin:/bin`) and the non-interactive `~/.bashrc` guard are
-standard, documented cron behaviour.*
+*Run on GNU bash 5.2 (Ubuntu 24.04).*
