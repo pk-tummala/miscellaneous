@@ -1,0 +1,15 @@
+# ---------------------------------------------------------------------------
+# crontab.example - the same job, scheduled two ways.
+# ---------------------------------------------------------------------------
+
+# THE NAIVE WAY - fails at 3am.
+# cron runs with a bare environment: PATH=/usr/bin:/bin and no ~/.bashrc, so it
+# can't find reportgen (it's in the project ./bin) and REPORT_ENV is unset.
+0 3 * * * /opt/etl/report.sh
+
+# THE FIX - declare the environment in the crontab (cron reads these lines).
+# Better still, declare it inside the script; see report_fixed.sh.
+SHELL=/bin/bash
+PATH=/opt/etl/bin:/usr/local/bin:/usr/bin:/bin
+REPORT_ENV=prod
+0 3 * * * /opt/etl/report.sh >> /var/log/report.log 2>&1

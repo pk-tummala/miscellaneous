@@ -1,0 +1,38 @@
+======================================================================
+CRON ISN'T YOUR SHELL - the same script, by hand vs under cron
+======================================================================
+
+The job (report.sh):
+    echo "target env: $REPORT_ENV"
+    reportgen "$REPORT_ENV"        # reportgen lives in ./bin
+
+--- 1. You run it by hand (your login shell) ---
+  $ ./report.sh
+  target env: prod
+  reportgen: built the prod report
+  => works: your PATH includes ./bin, and REPORT_ENV came from ~/.bashrc.
+
+--- 2. cron runs the SAME script at 3am (bare env, minimal PATH) ---
+  # crontab:  0 3 * * * /opt/etl/report.sh
+  # reproduced with: env -i PATH=/usr/bin:/bin HOME=$HOME bash report.sh
+  target env: <unset>
+report.sh: line 5: reportgen: command not found
+  -> exit 127
+  => cron can't find reportgen (not on /usr/bin:/bin), and REPORT_ENV is gone.
+
+--- 3. The fix: report_fixed.sh declares its own PATH + env ---
+  # same bare env as cron:
+  target env: prod
+  reportgen: built the prod report
+  -> exit 0
+  => runs the same by hand or under cron.
+
+======================================================================
+The fix: declare the environment, don't inherit it.
+  - set PATH in the script (or the crontab), or use absolute paths
+  - source a DEDICATED env file (not ~/.bashrc - it exits early when
+    non-interactive, so sourcing it does nothing)
+  - set SHELL=/bin/bash in the crontab if you use bash (cron uses /bin/sh)
+  - redirect output to a log (>> report.log 2>&1) so a 3am failure isn't silent
+See crontab.example for the schedule, both ways.
+======================================================================

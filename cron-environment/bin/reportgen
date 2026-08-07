@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+echo "  reportgen: built the $1 report"
