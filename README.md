@@ -70,6 +70,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | [`daily-job-status-automation/`](daily-job-status-automation/daily-job-status-automation-README.md) | A pure-shell tool that queries DataStage master sequences and emails a RAG colour-coded daily status report. Runs in a self-contained demo mode out of the box. |
 | [`set-euo-pipefail/`](set-euo-pipefail/set-euo-pipefail-README.md) | The same load script twice — one exits 0 after three failures and reports success, the other doesn't. Three characters of insurance. |
 | [`event-driven-ingestion-aws/`](event-driven-ingestion-aws/event-driven-ingestion-aws-README.md) | Why polling a bucket on a timer (or keeping a cluster warm) costs you latency and idle compute — and the event-driven fix: S3 → EventBridge → Step Functions → EMR Serverless. A runnable inotify proof of the idea, plus the real AWS wiring. |
+| [`shell-trap-cleanup/`](shell-trap-cleanup/shell-trap-cleanup-README.md) | Scripts that tidy up after themselves. A job killed mid-run leaves a stale lock that blocks the next run — unless cleanup lives in `trap cleanup EXIT`. Kills each job mid-run to prove the difference. |
 
 _New folders land as the series continues._
 
