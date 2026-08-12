@@ -1,0 +1,39 @@
+==========================================================================
+BROADCAST JOINS - stop shuffling the big side
+==========================================================================
+
+fact  = 2,000,000 rows   (the big side)
+dim   =       200 rows   (the small side)
+join  = fact JOIN dim ON dim_id
+
+--------------------------------------------------------------------------
+1. Regular join (dimension above the broadcast threshold) -> SORT-MERGE
+--------------------------------------------------------------------------
+   *(5) SortMergeJoin [dim_id], [dim_id], Inner
+   +- Exchange hashpartitioning(dim_id, 8), ENSURE_REQUIREMENTS
+   Exchange hashpartitioning(dim_id, 8), ENSURE_REQUIREMENTS
+
+   Both sides get an Exchange (hash-partitioned by dim_id) - i.e. BOTH
+   tables are shuffled across the network before they can be joined.
+
+--------------------------------------------------------------------------
+2. Broadcast the small side -> BROADCAST HASH JOIN
+--------------------------------------------------------------------------
+   fact.join(broadcast(dim), "dim_id")
+   *(2) BroadcastHashJoin [dim_id], [dim_id], Inner, BuildRight, false, false
+   BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]),false)
+
+   Only the dim gets a BroadcastExchange (sent to every executor). There
+   is NO Exchange on the fact - the 2,000,000-row side never moves.
+
+--------------------------------------------------------------------------
+3. Same answer either way: sort-merge 2,000,000 rows == broadcast 2,000,000 rows
+--------------------------------------------------------------------------
+
+==========================================================================
+A broadcast join trades network for memory: ship the small side once to
+each executor so the big side isn't shuffled. Spark auto-broadcasts under
+spark.sql.autoBroadcastJoinThreshold (default 10MB); broadcast() forces it.
+Ceiling: Spark cannot broadcast a relation larger than 8GB, and the small
+side is collected to the DRIVER first - so 'small' means small.
+==========================================================================

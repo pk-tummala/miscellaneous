@@ -64,6 +64,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | [`config-driven-python/`](config-driven-python/config-driven-python-README.md) | Keep the settings that change between test and live out of your code, so the same pipeline runs anywhere. Shows the four places a setting can come from — and which one wins. |
 | [`databricks-auto-loader/`](databricks-auto-loader/databricks-auto-loader-README.md) | Why listing a bucket to find new files stops scaling, and how Auto Loader's checkpoint fixes it. A runnable open-source proof that only new files are processed each run, plus the real `cloudFiles` code from a Databricks build. |
 | [`narrow-vs-wide-transformations/`](narrow-vs-wide-transformations/narrow-vs-wide-transformations-README.md) | The one Spark idea that explains your runtimes: narrow transformations stay in a partition, wide ones shuffle. Shows which ops shuffle via real `explain()` plans, plus the `coalesce` vs `repartition` trap. |
+| [`broadcast-joins/`](broadcast-joins/broadcast-joins-README.md) | A regular join shuffles both tables; broadcast the small side and the big fact never moves. Reads the physical plan before (sort-merge, two Exchanges) and after (broadcast hash join, one), and covers the 10MB/8GB limits and the driver-collect cost. |
 
 ### Shell, orchestration & platform
 | Folder | What it does |
