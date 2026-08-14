@@ -73,6 +73,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | [`set-euo-pipefail/`](set-euo-pipefail/set-euo-pipefail-README.md) | The same load script twice — one exits 0 after three failures and reports success, the other doesn't. Three characters of insurance. |
 | [`event-driven-ingestion-aws/`](event-driven-ingestion-aws/event-driven-ingestion-aws-README.md) | Why polling a bucket on a timer (or keeping a cluster warm) costs you latency and idle compute — and the event-driven fix: S3 → EventBridge → Step Functions → EMR Serverless. A runnable inotify proof of the idea, plus the real AWS wiring. |
 | [`cron-environment/`](cron-environment/cron-environment-README.md) | Why a script that works by hand dies at 3am under cron: a bare environment and minimal PATH, none of your `~/.bashrc`. Reproduces it with `env -i` and shows the fix. |
+| [`s3-prefix-partition-design/`](s3-prefix-partition-design/s3-prefix-partition-design-README.md) | How folder layout fixes scan cost before you write a query. Writes the same rows partitioned by `dt` vs flat, shows PartitionFilters vs DataFilters and ~10x fewer bytes scanned. Retires the old prefix-for-throughput myth. |
 
 _New folders land as the series continues._
 

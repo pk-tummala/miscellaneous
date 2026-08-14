@@ -1,0 +1,31 @@
+==========================================================================
+PARTITION LAYOUT DECIDES SCAN COST - before you write a single query
+==========================================================================
+Same 50,000 rows, 10 days, written two ways. One query: WHERE dt = '2024-01-05'.
+
+--- Layout A: partitioned by dt  (Hive-style dt=.../ folders) ---
+  s3://bucket/events/
+    dt=2024-01-01/   dt=2024-01-02/   ...   dt=2024-01-10/     (10 folders)
+  (aws s3 ls s3://bucket/events/ would list exactly these dt= prefixes)
+
+--- Layout B: flat  (dt is just a column inside the files) ---
+  s3://bucket/events/
+    part-00000-*.parquet          (no folders to skip)
+
+--- What the query planner does with 'WHERE dt = 2024-01-05' ---
+  A partitioned:  PartitionFilters: [isnotnull(dt), (dt = 2024-01-05)]
+                  DataFilters:      []    -> prunes 9 of 10 folders, unread
+  B flat:         PartitionFilters: (none - dt is not a partition column)
+                  DataFilters:      [isnotnull(dt), (dt = 2024-01-05)]   -> opens every file, filters rows
+
+--- What each query actually READS (Athena bills per byte scanned) ---
+  A partitioned:   22,194 bytes   (dt=2024-01-05/ only - 1 of 10 days)
+  B flat:         215,790 bytes   (the whole table)
+  => partitioning scans ~10% of the data: ~10x less read, ~10x cheaper.
+
+  rows returned either way: 5000 (identical result, very different cost)
+
+==========================================================================
+Partition by the column you filter on most - usually a date. The folder
+layout someone chose months ago fixed this query's cost before you typed WHERE.
+==========================================================================
