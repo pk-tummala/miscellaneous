@@ -1,0 +1,131 @@
+CREATE WAREHOUSE IF NOT EXISTS mp_demo_wh
+  WAREHOUSE_SIZE = 'XSMALL' AUTO_SUSPEND = 60 AUTO_RESUME = TRUE INITIALLY_SUSPENDED = TRUE;
++-------------------------------------------------+
+| status                                          |
+|-------------------------------------------------|
+| MP_DEMO_WH already exists, statement succeeded. |
++-------------------------------------------------+
+USE WAREHOUSE mp_demo_wh;
++----------------------------------+
+| status                           |
+|----------------------------------|
+| Statement executed successfully. |
++----------------------------------+
+CREATE DATABASE IF NOT EXISTS mp_demo;
++----------------------------------------------+
+| status                                       |
+|----------------------------------------------|
+| MP_DEMO already exists, statement succeeded. |
++----------------------------------------------+
+CREATE SCHEMA  IF NOT EXISTS mp_demo.demo;
++-------------------------------------------+
+| status                                    |
+|-------------------------------------------|
+| DEMO already exists, statement succeeded. |
++-------------------------------------------+
+USE SCHEMA mp_demo.demo;
++----------------------------------+
+| status                           |
+|----------------------------------|
+| Statement executed successfully. |
++----------------------------------+
+CREATE OR REPLACE TABLE events_unclustered AS
+WITH base AS (
+    SELECT ROW_NUMBER() OVER (ORDER BY SEQ8()) AS n
+    FROM TABLE(GENERATOR(ROWCOUNT => 20000000))
+)
+SELECT
+    DATEADD(day, MOD(ABS(HASH(n)), 365), DATE '2024-01-01')        AS event_date,
+    MOD(ABS(HASH(n, 101)), 1000000) + 1                            AS user_id,
+    (MOD(ABS(HASH(n, 202)), 100000) / 100.0)::NUMBER(10,2)          AS amount,
+    SHA1_HEX(TO_VARCHAR(n))      || SHA1_HEX(TO_VARCHAR(n * 3 + 1)) ||
+    SHA1_HEX(TO_VARCHAR(n * 7 + 2)) || SHA1_HEX(TO_VARCHAR(n * 11 + 3)) ||
+    SHA1_HEX(TO_VARCHAR(n * 13 + 5))                               AS payload
+FROM base;
++------------------------------------------------+
+| status                                         |
+|------------------------------------------------|
+| Table EVENTS_UNCLUSTERED successfully created. |
++------------------------------------------------+
+CREATE OR REPLACE TABLE events_clustered AS
+SELECT * FROM events_unclustered ORDER BY event_date;
++----------------------------------------------+
+| status                                       |
+|----------------------------------------------|
+| Table EVENTS_CLUSTERED successfully created. |
++----------------------------------------------+
+SELECT 'events_unclustered' AS table_name,
+       PARSE_JSON(SYSTEM$CLUSTERING_INFORMATION('events_unclustered','(event_date)')):average_depth::float        AS average_depth,
+       PARSE_JSON(SYSTEM$CLUSTERING_INFORMATION('events_unclustered','(event_date)')):total_partition_count::int   AS total_partitions
+UNION ALL
+SELECT 'events_clustered',
+       PARSE_JSON(SYSTEM$CLUSTERING_INFORMATION('events_clustered','(event_date)')):average_depth::float,
+       PARSE_JSON(SYSTEM$CLUSTERING_INFORMATION('events_clustered','(event_date)')):total_partition_count::int;
++-------------------------------------------------------+
+| TABLE_NAME         | AVERAGE_DEPTH | TOTAL_PARTITIONS |
+|--------------------+---------------+------------------|
+| events_unclustered | 127.0         | 127              |
+| events_clustered   | 2.0           | 127              |
++-------------------------------------------------------+
+SELECT COUNT(*) FROM events_unclustered WHERE event_date = DATE '2024-06-15';
++----------+
+| COUNT(*) |
+|----------|
+| 54707    |
++----------+
+SET uncl_qid  = LAST_QUERY_ID();
++----------------------------------+
+| status                           |
+|----------------------------------|
+| Statement executed successfully. |
++----------------------------------+
+SELECT COUNT(*) FROM events_clustered   WHERE event_date = DATE '2024-06-15';
++----------+
+| COUNT(*) |
+|----------|
+| 54707    |
++----------+
+SET clust_qid = LAST_QUERY_ID();
++----------------------------------+
+| status                           |
+|----------------------------------|
+| Statement executed successfully. |
++----------------------------------+
+SELECT COUNT(*) FROM events_clustered   WHERE TO_VARCHAR(event_date) = '2024-06-15';
++----------+
+| COUNT(*) |
+|----------|
+| 54707    |
++----------+
+SET anti_qid  = LAST_QUERY_ID();
++----------------------------------+
+| status                           |
+|----------------------------------|
+| Statement executed successfully. |
++----------------------------------+
+WITH pruning AS (
+    SELECT 'unclustered   (event_date = DATE)'                AS scenario,
+           operator_statistics:pruning:partitions_scanned::int AS partitions_scanned,
+           operator_statistics:pruning:partitions_total::int   AS partitions_total
+    FROM TABLE(GET_QUERY_OPERATOR_STATS($uncl_qid))  WHERE operator_type = 'TableScan'
+    UNION ALL
+    SELECT 'clustered     (event_date = DATE)',
+           operator_statistics:pruning:partitions_scanned::int,
+           operator_statistics:pruning:partitions_total::int
+    FROM TABLE(GET_QUERY_OPERATOR_STATS($clust_qid)) WHERE operator_type = 'TableScan'
+    UNION ALL
+    SELECT 'clustered but TO_VARCHAR() wraps the column (defeats pruning)',
+           operator_statistics:pruning:partitions_scanned::int,
+           operator_statistics:pruning:partitions_total::int
+    FROM TABLE(GET_QUERY_OPERATOR_STATS($anti_qid))  WHERE operator_type = 'TableScan'
+)
+SELECT scenario, partitions_scanned, partitions_total,
+       ROUND(100 * partitions_scanned / NULLIF(partitions_total, 0), 1) AS pct_scanned
+FROM pruning;
++---------------------------------------------------------------------------------------------------------------------+
+| SCENARIO                                                      | PARTITIONS_SCANNED | PARTITIONS_TOTAL | PCT_SCANNED |
+|---------------------------------------------------------------+--------------------+------------------+-------------|
+| unclustered   (event_date = DATE)                             | 127                | 127              | 100.0       |
+| clustered     (event_date = DATE)                             | 2                  | 127              | 1.6         |
+| clustered but TO_VARCHAR() wraps the column (defeats pruning) | 125                | 127              | 98.4        |
++---------------------------------------------------------------------------------------------------------------------+
