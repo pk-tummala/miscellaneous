@@ -1,10 +1,11 @@
-# Micro-partitions: why Snowflake has no indexes
+# Micro-partitions: why standard Snowflake tables have no indexes
 
-**In one line:** Snowflake has no `CREATE INDEX`. Every table is split into immutable
-micro-partitions, each storing the min/max of every column, and a filtered query skips
-(prunes) the partitions that can't hold a match. Pruning replaces indexing - but it only
-works if the values you filter on are physically co-located, which is what clustering
-controls.
+**In one line:** a standard Snowflake table has no `CREATE INDEX`. Every table is split
+into immutable micro-partitions, each storing the min/max of every column, and a filtered
+query skips (prunes) the partitions that can't hold a match. Pruning replaces indexing -
+but it only works if the values you filter on are physically co-located, which is what
+clustering controls. (Hybrid / Unistore tables, Snowflake's OLTP option, are the
+exception - those *do* support `CREATE INDEX`. This is about standard analytical tables.)
 
 > **Needs a Snowflake account.** This is real SQL against real data. An XSMALL warehouse
 > and a free trial are enough.
@@ -37,19 +38,21 @@ the whole point of the post - don't read too much into the exact counts.
 ## What a micro-partition is
 
 When you load a table, Snowflake automatically divides it into **micro-partitions**:
-immutable, columnar storage units of ~50-500 MB uncompressed (about 16 MB compressed). A
+immutable, columnar storage units of 50 to 500 MB of uncompressed data, stored compressed on disk. A
 large table can have thousands or millions of them. For each one, Snowflake records
 metadata in the services layer: the **min and max of every column**, distinct counts,
 null counts. You never create or size them.
 
-## Why there are no indexes
+## Why standard tables have no indexes
 
 A traditional database points a B-tree index at a column so lookups skip most of the
 table. Snowflake does the same job with the micro-partition metadata instead. When you
 write `WHERE event_date = DATE '2024-06-15'`, the planner reads each partition's min/max
 for `event_date` and eliminates every partition whose range can't contain that date. It
 only scans what's left. That's **partition pruning**, and it's why a selective query on a
-50-terabyte table can return in seconds without a single index.
+50-terabyte table can return in seconds without a single index. (Snowflake's hybrid /
+Unistore tables do support indexes for OLTP-style point lookups; the rest of this note is
+about standard tables.)
 
 ## The catch: pruning needs co-location (clustering)
 
@@ -90,13 +93,13 @@ table scans almost all of them - for the identical query and identical rows.
 Pruning uses the column's stored metadata, so it breaks the moment you stop filtering on
 the column *as stored*:
 
-- **Wrapping the column in a function** - `WHERE DATE_TRUNC('day', event_date) = ...` -
+- **Wrapping the column in a function** - `WHERE TO_VARCHAR(event_date) = '2024-06-15'` -
   forces a row-by-row evaluation, so the min/max metadata is useless and the scan falls
-  back to (nearly) full.
-- **Type mismatches** - comparing a `DATE` column to a `TIMESTAMP` literal casts the
-  column per row and disables pruning. Match the literal's type to the column
-  (`= DATE '2024-06-15'`).
-- **Predicates with subqueries** don't prune either.
+  back to (nearly) full. The demo shows this directly (Section 3). Filter on the column as
+  stored instead: `WHERE event_date = DATE '2024-06-15'`.
+- **Predicates with subqueries** don't prune either - this one is stated in Snowflake's
+  own docs: "Snowflake does not prune micro-partitions based on a predicate with a
+  subquery, even if the subquery results in a constant."
 
 Section 3 of the script demonstrates this with `TO_VARCHAR(event_date) = '2024-06-15'`:
 same clustered table, but `partitions_scanned` jumps back up toward the total.
@@ -118,4 +121,4 @@ snowflake-micro-partitions/
 that replaces indexes, natural clustering by load order, `average_depth` from
 SYSTEM$CLUSTERING_INFORMATION, and `partitions_scanned` / `partitions_total` from
 GET_QUERY_OPERATOR_STATS. Every number in output/output.txt is captured straight from
-executing this SQL on a live Snowflake account.*
+executing this SQL on a live Snowflake account - nothing here is generated.*

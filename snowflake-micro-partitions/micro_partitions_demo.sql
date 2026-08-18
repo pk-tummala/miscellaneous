@@ -1,8 +1,9 @@
 /* ============================================================================
-   Micro-partitions: why Snowflake has no indexes
+   Micro-partitions: why standard Snowflake tables have no indexes
    ----------------------------------------------------------------------------
-   Snowflake has no CREATE INDEX. Instead, every table is split into immutable
-   micro-partitions (50-500 MB uncompressed, ~16 MB compressed), and each one
+   A standard Snowflake table has no CREATE INDEX (hybrid / Unistore tables are the
+   exception). Instead, every table is split into immutable
+   micro-partitions (50 to 500 MB uncompressed, stored compressed on disk), and each
    stores the MIN/MAX of every column. A filtered query reads that metadata and
    skips - "prunes" - the partitions that can't hold a match. Pruning replaces
    indexing.

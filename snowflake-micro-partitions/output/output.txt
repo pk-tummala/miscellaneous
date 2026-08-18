@@ -126,6 +126,6 @@ FROM pruning;
 | SCENARIO                                                      | PARTITIONS_SCANNED | PARTITIONS_TOTAL | PCT_SCANNED |
 |---------------------------------------------------------------+--------------------+------------------+-------------|
 | unclustered   (event_date = DATE)                             | 127                | 127              | 100.0       |
-| clustered     (event_date = DATE)                             | 2                  | 127              | 1.6         |
+| clustered     (event_date = DATE)                             | 1                  | 127              | 0.8         |
 | clustered but TO_VARCHAR() wraps the column (defeats pruning) | 125                | 127              | 98.4        |
 +---------------------------------------------------------------------------------------------------------------------+
