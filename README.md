@@ -66,6 +66,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | [`databricks-auto-loader/`](databricks-auto-loader/databricks-auto-loader-README.md) | Why listing a bucket to find new files stops scaling, and how Auto Loader's checkpoint fixes it. A runnable open-source proof that only new files are processed each run, plus the real `cloudFiles` code from a Databricks build. |
 | [`narrow-vs-wide-transformations/`](narrow-vs-wide-transformations/narrow-vs-wide-transformations-README.md) | The one Spark idea that explains your runtimes: narrow transformations stay in a partition, wide ones shuffle. Shows which ops shuffle via real `explain()` plans, plus the `coalesce` vs `repartition` trap. |
 | [`broadcast-joins/`](broadcast-joins/broadcast-joins-README.md) | A regular join shuffles both tables; broadcast the small side and the big fact never moves. Reads the physical plan before (sort-merge, two Exchanges) and after (broadcast hash join, one), and covers the 10MB/8GB limits and the driver-collect cost. |
+| [`data-skew-salting/`](data-skew-salting/data-skew-salting-README.md) | Conditional salting: fix a skewed join by salting ONLY the hot key, not the whole table. ACME_CORP holds 1,600,000 of 2,000,000 orders. Normal salting fans the dimension out to 64,016 rows; conditional salting keeps it at 4,016 - same busiest-task drop (1,600,000 -> 100,000) for ~16x less shuffle. Skewed keys found dynamically. |
 
 ### Shell, orchestration & platform
 | Folder | What it does |
