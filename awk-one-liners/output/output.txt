@@ -1,0 +1,84 @@
+======================================================================
+10 awk one-liners every data engineer should own
+======================================================================
+Sample: orders.csv - 100000 rows, 7 columns; regions.csv - 5-row lookup.
+awk streams line by line, so the same one-liners run on an 8GB file.
+
+----------------------------------------------------------------------
+1. Extract a column, with a condition
+   awk -F',' 'NR>1 && $7 > 100 {print $4}' orders.csv
+   -> customer_id (col 4) where score (col 7) > 100. First 3:
+   cust_0009
+   cust_0010
+   cust_0011
+   (49500 rows match)
+
+----------------------------------------------------------------------
+2. Conditional sum
+   awk -F',' 'NR>1 && $3=="US" {s+=$6} END{print s}' orders.csv
+   -> total amount for US: 9970000
+
+----------------------------------------------------------------------
+3. Group-by count (piped to sort for stable order)
+   awk -F',' 'NR>1 {c[$3]++} END{for(k in c) print k, c[k]}' orders.csv | sort
+   -> orders per country:
+   AU 20000
+   DE 20000
+   IN 20000
+   UK 20000
+   US 20000
+
+----------------------------------------------------------------------
+4. Group-by sum
+   awk -F',' 'NR>1 {s[$3]+=$6} END{for(k in s) print k, s[k]}' orders.csv | sort
+   -> total amount per country:
+   AU 9990000
+   DE 10030000
+   IN 10050000
+   UK 10010000
+   US 9970000
+
+----------------------------------------------------------------------
+5. Count rows matching a filter
+   awk -F',' 'NR>1 && $7>100 {n++} END{print n}' orders.csv
+   -> rows with score > 100: 49500
+
+----------------------------------------------------------------------
+6. Dedup without sorting (keeps first-seen order)
+   awk -F',' 'NR>1 && !seen[$4]++ {print $4}' orders.csv
+   -> unique customers, in first-seen order. First 3:
+   cust_0002
+   cust_0003
+   cust_0004
+   (500 unique customers)
+
+----------------------------------------------------------------------
+7. Average
+   awk -F',' 'NR>1 {s+=$6; n++} END{printf "%.2f\n", s/n}' orders.csv
+   -> average amount: 500.50
+
+----------------------------------------------------------------------
+8. Min / max of a column
+   awk -F',' 'NR>1 {if($6>mx)mx=$6} END{print mx}' orders.csv
+   -> max amount: 1000  min amount: 1
+
+----------------------------------------------------------------------
+9. Derive a new column (add a value band)
+   awk -F',' 'BEGIN{OFS=","} NR>1 {print $0, ($6>=100?"high":"low")}' orders.csv
+   -> each row with a trailing high/low flag. First 3:
+   1,2024-02-02,UK,cust_0002,gadget,38,13,low
+   2,2024-03-03,IN,cust_0003,gizmo,75,26,low
+   3,2024-04-04,AU,cust_0004,doohickey,112,39,high
+
+----------------------------------------------------------------------
+10. Two-file lookup / join (enrich orders with region)
+   awk -F',' 'NR==FNR{r[$1]=$2; next} FNR>1{print $4, r[$3]}' regions.csv orders.csv
+   -> customer_id and its region, joined on country. First 3:
+   cust_0002 EMEA
+   cust_0003 APAC
+   cust_0004 APAC
+
+======================================================================
+awk holds only the group keys in memory (5 countries, 500 customers),
+never the whole file - which is why it scales to files you can't open.
+======================================================================
