@@ -1,0 +1,39 @@
+======================================================================
+NULL is not a value: the NOT IN trap (three-valued logic)
+======================================================================
+orders.customer_id            : 1, 2, 3, 4, 5
+excluded_customers.customer_id: 2, 4, NULL   <- one NULL slipped in
+Intent: orders whose customer is NOT excluded  ->  expect 1, 3, 5
+
+----------------------------------------------------------------------
+1. NOT IN  (the trap)
+   (0 rows)
+   -> Nothing errored. One NULL returned zero rows.
+
+----------------------------------------------------------------------
+2. NOT EXISTS  (NULL-safe fix)
+   1
+   3
+   5
+   -> Correct: 1, 3, 5.
+
+----------------------------------------------------------------------
+3. NOT IN + IS NOT NULL  (filter the NULLs)
+   1
+   3
+   5
+   -> Correct: 1, 3, 5.
+
+----------------------------------------------------------------------
+4. Three-valued logic: comparisons with NULL
+   1 = NULL | UNKNOWN
+   1 <> NULL | UNKNOWN
+   NULL = NULL | UNKNOWN
+   1 IN (2,4,NULL) | UNKNOWN
+   1 NOT IN (2,4,NULL) | UNKNOWN
+   -> Every one is UNKNOWN - never TRUE.
+
+======================================================================
+WHERE keeps a row only when the predicate is TRUE.
+UNKNOWN (any NULL comparison) is dropped, just like FALSE - silently.
+======================================================================

@@ -77,6 +77,7 @@ Each folder has its own README with the exact command to run it (most are `bash 
 | [`cron-environment/`](cron-environment/cron-environment-README.md) | Why a script that works by hand dies at 3am under cron: a bare environment and minimal PATH, none of your `~/.bashrc`. Reproduces it with `env -i` and shows the fix. |
 | [`s3-prefix-partition-design/`](s3-prefix-partition-design/s3-prefix-partition-design-README.md) | How folder layout fixes scan cost before you write a query. Writes the same rows partitioned by `dt` vs flat, shows PartitionFilters vs DataFilters and ~10x fewer bytes scanned. Retires the old prefix-for-throughput myth. |
 | [`awk-one-liners/`](awk-one-liners/awk-one-liners-README.md) | Ten awk one-liners every data engineer should own - field extraction with a condition, conditional sums, group-by count/sum, dedup without sorting, averages, min/max, deriving a column, and a two-file lookup/join. awk streams line by line, so the same one-liners run on an 8GB file in constant memory (group-bys hold only the distinct keys); `bash run.sh stress 8` proves it. Pure shell, no account. |
+| [`null-three-valued-logic/`](null-three-valued-logic/null-three-valued-logic-README.md) | NULL is not a value: why `NOT IN` against a subquery containing a NULL silently returns zero rows - the bug that quietly breaks reconciliations. Walks the three-valued logic (TRUE/FALSE/UNKNOWN), shows the `NOT IN` predicate collapsing to UNKNOWN, and the NULL-safe fix (`NOT EXISTS`). Runnable DuckDB, no account. |
 
 _New folders land as the series continues._
 
