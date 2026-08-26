@@ -1,0 +1,47 @@
+======================================================================
+Logging done right in Python: structured logs with context
+======================================================================
+
+--- 1. print(), even with the id in the message, is a STRING ---
+processing order R-100
+processing order R-101
+processing order R-102
+ERROR processing R-102 at validate: amount is negative
+processing order R-103
+   The id and error are there - but it is free text: no run_id to tie it to this
+   run among thousands, and no fields to filter or aggregate without regex.
+
+--- 2. Bind context once (reusable filter), then log ---
+   run_id = os.environ.get('PIPELINE_RUN_ID') or uuid.uuid4().hex[:6]   # per run, not hardcoded
+   bind_context(run_id=run_id)
+   bind_context(record_id=o['id'])          # per record; ContextFilter stamps both on every line
+{"ts": "2026-08-26T02:14:02Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "msg": "run started", "step": "start", "n_records": 4}
+{"ts": "2026-08-26T02:14:03Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-100", "msg": "validating record", "step": "validate"}
+{"ts": "2026-08-26T02:14:04Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-100", "msg": "loaded record", "step": "load"}
+{"ts": "2026-08-26T02:14:05Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-101", "msg": "validating record", "step": "validate"}
+{"ts": "2026-08-26T02:14:06Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-101", "msg": "loaded record", "step": "load"}
+{"ts": "2026-08-26T02:14:07Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-102", "msg": "validating record", "step": "validate"}
+{"ts": "2026-08-26T02:14:08Z", "level": "ERROR", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-102", "msg": "record failed", "step": "validate", "reason": "amount is negative"}
+{"ts": "2026-08-26T02:14:09Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-103", "msg": "validating record", "step": "validate"}
+{"ts": "2026-08-26T02:14:10Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-103", "msg": "loaded record", "step": "load"}
+{"ts": "2026-08-26T02:14:11Z", "level": "INFO", "logger": "pipeline", "run_id": "run-2f9c1a", "msg": "run finished", "step": "end", "ok": 3, "failed": 1}
+
+--- 3. One log.error call -> one JSON object (where each field comes from) ---
+   log.error("record failed", extra={"step": "validate", "reason": str(e)})
+   becomes:
+   {"ts": "2026-08-26T02:14:08Z", "level": "ERROR", "logger": "pipeline", "run_id": "run-2f9c1a", "record_id": "R-102", "msg": "record failed", "step": "validate", "reason": "amount is negative"}
+     ts, level, logger  <- added by the logger + formatter
+     run_id, record_id  <- bound via bind_context(), stamped by ContextFilter (dynamic)
+     msg                <- the first argument to log.error(...)
+     step, reason       <- the extra={...} you pass on this call
+
+--- 4. Because they are fields, you can query them ---
+   errors only        -> run: run-2f9c1a | record: R-102 | step: validate | why: amount is negative
+   count by level     -> ERROR 1 | INFO 9
+   count by step      -> end 1 | load 3 | start 1 | validate 5
+   (same shape as Splunk `stats count by step`, or SQL GROUP BY over the JSON)
+
+======================================================================
+print() gives you a wall of strings; structured logs give you queryable fields.
+Bind context once with a reusable filter - never hardcode it, never repeat it.
+======================================================================
