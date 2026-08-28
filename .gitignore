@@ -32,6 +32,7 @@ tmp_*
 *.html
 *.psv
 data/
+.databricks/
 
 # ---- OS noise ----
 .DS_Store

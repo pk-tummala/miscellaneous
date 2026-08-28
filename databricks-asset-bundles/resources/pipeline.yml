@@ -1,0 +1,14 @@
+# resources/pipeline.yml
+# A minimal Lakeflow (DLT) pipeline. mode: development prefixes its NAME with [dev <you>], but
+# `schema` - where it writes - is a value it never touches. ${var.schema} resolves to
+# demo_<you> in dev, so each developer's pipeline writes to its own schema.
+resources:
+  pipelines:
+    demo_pipeline:
+      name: demo_pipeline
+      catalog: ${var.catalog}     # dab_sandbox (must already exist - setup.sh)
+      schema: ${var.schema}       # the WRITE TARGET - not prefixed by dev mode
+      serverless: true
+      libraries:
+        - file:
+            path: ../src/demo_pipeline.py

@@ -1,0 +1,34 @@
+# databricks.yml
+# The gotcha: mode: development prepends [dev <you>] to a pipeline's NAME - so two developers get
+# separate pipeline objects ([dev alice] demo_pipeline, [dev bob] demo_pipeline) and it FEELS
+# isolated. But it does NOT touch the pipeline's write TARGET (its catalog/schema). Point two
+# developers' pipelines at the same schema and they write the same tables - overwriting each other.
+#
+# The fix (shipped below): make the pipeline's target schema per-developer with
+# ${workspace.current_user.short_name}. Now each developer's pipeline writes to its own schema.
+#
+#   databricks bundle validate -t dev -p vic-dev   # shows the resolved name AND target (the proof)
+#   databricks bundle deploy   -t dev -p vic-dev
+#   databricks bundle run demo_pipeline -t dev -p vic-dev   # writes bronze/silver into YOUR schema
+#
+# Databricks Asset Bundles were recently renamed Declarative Automation Bundles.
+
+bundle:
+  name: dab_isolation_demo
+
+variables:
+  catalog:
+    description: Shared catalog (created once by setup.sh)
+    default: dab_sandbox
+  schema:
+    description: The pipeline's target schema - where it WRITES tables
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      schema: demo_${workspace.current_user.short_name}   # <- per-developer WRITE TARGET (the fix)
