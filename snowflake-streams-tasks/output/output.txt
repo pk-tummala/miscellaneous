@@ -1,0 +1,42 @@
+# Captured from a real run (Snowflake Standard edition, snow CLI).
+# The verbose SHOW TASKS tables are condensed to the state columns; all values are from the run.
+==================================================================
+ self-healing Streams & Tasks CDC  |  connection: <default from config.toml>
+==================================================================
+
+--- 1. Build the pipeline + the cdc_watchdog_task that heals it ---
+Warehouse DEMO_WH ready.  Database STREAMS_TASKS_DEMO / schema DEMO ready.
+Table ORDERS created.  Table ORDERS_TARGET created.  Stream ORDERS_STREAM created.
+Task ORDERS_CDC_TASK created.  Procedure HEAL_PIPELINE created.  Task CDC_WATCHDOG_TASK created.
+ORDERS_CDC_TASK resumed.  CDC_WATCHDOG_TASK resumed.
+
+--- 2. Break it (suspend the CDC task), then watch it heal ---
+$ ALTER TASK orders_cdc_task SUSPEND;                    -> succeeded
+$ INSERT INTO orders VALUES (1,'ACME',100.00);           -> 1 row
+
+  BEFORE
+  name             state_before
+  ORDERS_CDC_TASK  suspended
+  SYSTEM$STREAM_HAS_DATA('orders_stream') = True         (a change is waiting)
+
+$ CALL heal_pipeline();          -> cdc_task ensured running
+$ EXECUTE TASK orders_cdc_task;  -> scheduled to run immediately
+$ CALL SYSTEM$WAIT(20);          -> waited 20 seconds
+
+  AFTER
+  name             state_after
+  ORDERS_CDC_TASK  started
+
+  orders_target
+  ORDER_ID  CUSTOMER  AMOUNT   UPDATED_AT
+  1         ACME      100.00   2026-08-30 19:24:05.010
+
+  orders_stream
+  name           stale   stale_after
+  ORDERS_STREAM  false   2026-09-06 19:24:05.917
+                         (= last consume + max(DATA_RETENTION=1, MAX_DATA_EXTENSION=7) = +7 days)
+
+==================================================================
+ state_before = suspended  ->  cdc_watchdog_task ran  ->  state_after = started
+ The stream never went stale, and the backlog was processed. Self-healed.
+==================================================================
