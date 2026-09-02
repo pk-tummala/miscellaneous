@@ -1,0 +1,24 @@
+# databricks.yml
+# Native SCD2 with AUTO CDC (formerly APPLY CHANGES) - a naive dimension vs a guarded one.
+# One workspace; the CLI resolves the host from your profile (-p / default). Deploy + run with run.sh.
+bundle:
+  name: dlt_scd2_demo
+
+variables:
+  catalog:
+    description: Unity Catalog the pipeline writes to
+    default: dlt_scd2_demo
+  schema:
+    description: Schema the pipeline writes to
+    default: demo
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      catalog: dlt_scd2_demo
+      schema: demo

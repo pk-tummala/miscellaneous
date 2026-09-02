@@ -1,0 +1,37 @@
+# Captured from a real run (Databricks, vic-dev profile, serverless DLT pipeline).
+# Warehouse id and user masked; result values are exactly as produced.
+==================================================================
+ native SCD2 with AUTO CDC  |  profile=vic-dev  warehouse=<id>
+ user=<you>
+==================================================================
+
+--- 0. Provision catalog + schema + grants (idempotent) ---
+  ok (warehouse scd2_demo_wh created; catalog + schema + grants applied)
+
+--- 1. Seed the CDC feed (source columns + a pipeline-added ingested_at, pre-set for a reproducible out-of-order case) ---
+  4 rows inserted
+  order_id=1 SHIPPED(src 10:00, ingested 11:00) and PENDING(src 09:00, ingested 11:05 - out of order), order_id=2, a NULL-key row
+
+--- 2. Deploy + run the serverless DLT pipeline (full refresh = clean, reproducible build) ---
+  Deployment complete.
+  Update RUNNING ...
+  Flow 'dlt_scd2_demo.demo.cdc_clean'         has COMPLETED.
+  Flow 'dlt_scd2_demo.demo.dim_orders_naive'  has COMPLETED.
+  Flow 'dlt_scd2_demo.demo.dim_orders_guarded' has COMPLETED.
+  Flow 'dlt_scd2_demo.demo.scd2_contrast'     has COMPLETED.
+  Update COMPLETED.
+
+--- 3. The contrast: the CURRENT row of each dimension ---
+$ SELECT dimension, order_id, order_status, order_updated_at FROM dlt_scd2_demo.demo.scd2_contrast ORDER BY dimension, order_id
+
+  dimension           order_id  order_status  order_updated_at
+  guarded (checks)    1         SHIPPED       2026-09-01T10:00:00Z   <- correct: newest source time won
+  guarded (checks)    2         PENDING       2026-09-01T09:10:00Z
+  naive (no checks)   1         PENDING       2026-09-01T09:00:00Z   <- wrong: late 11:05 arrival won on ingested_at
+  naive (no checks)   2         PENDING       2026-09-01T09:10:00Z
+  naive (no checks)   NULL      GARBAGE       2026-09-01T09:20:00Z   <- null-key row leaked in (no expectation)
+
+==================================================================
+ naive:   order_id=1 -> PENDING (won on ingestion/arrival order) + a NULL-key row
+ guarded: order_id=1 -> SHIPPED (correct - sequenced by order_updated_at), garbage dropped by expectations
+==================================================================

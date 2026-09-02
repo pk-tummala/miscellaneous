@@ -1,0 +1,11 @@
+# resources/pipeline.yml - the DLT / Lakeflow pipeline (serverless; AUTO CDC needs serverless or Pro/Advanced).
+resources:
+  pipelines:
+    scd2_pipeline:
+      name: scd2_pipeline
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      serverless: true
+      libraries:
+        - file:
+            path: ../src/scd2_pipeline.py
