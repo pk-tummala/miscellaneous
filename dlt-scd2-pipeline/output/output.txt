@@ -1,35 +1,56 @@
-# Captured from a real run (Databricks, vic-dev profile, serverless DLT pipeline).
-# Warehouse id and user masked; result values are exactly as produced.
 ==================================================================
- native SCD2 with AUTO CDC  |  profile=vic-dev  warehouse=<id>
- user=<you>
+ native SCD2 with AUTO CDC  |  profile=vic-dev  warehouse=a9106104b37b21f7
+ user=pk_tummala@yahoo.com
 ==================================================================
 
 --- 0. Provision catalog + schema + grants (idempotent) ---
-  ok (warehouse scd2_demo_wh created; catalog + schema + grants applied)
 
 --- 1. Seed the CDC feed (source columns + a pipeline-added ingested_at, pre-set for a reproducible out-of-order case) ---
-  4 rows inserted
+    4	4
   order_id=1 SHIPPED(src 10:00, ingested 11:00) and PENDING(src 09:00, ingested 11:05 - out of order), order_id=2, a NULL-key row
 
 --- 2. Deploy + run the serverless DLT pipeline (full refresh = clean, reproducible build) ---
-  Deployment complete.
-  Update RUNNING ...
-  Flow 'dlt_scd2_demo.demo.cdc_clean'         has COMPLETED.
-  Flow 'dlt_scd2_demo.demo.dim_orders_naive'  has COMPLETED.
-  Flow 'dlt_scd2_demo.demo.dim_orders_guarded' has COMPLETED.
-  Flow 'dlt_scd2_demo.demo.scd2_contrast'     has COMPLETED.
-  Update COMPLETED.
+Uploading bundle files to /Workspace/Users/pk_tummala@yahoo.com/.bundle/dlt_scd2_demo/dev/files...
+Deploying resources...
+Updating deployment state...
+Deployment complete!
+Update URL: https://dbc-ea9fa9df-6561.cloud.databricks.com/#joblist/pipelines/1b440621-3c98-47a7-9672-d6689cd0b861/updates/a7721367-b41c-4c8e-8261-a680ad670b5f
+
+2026-09-03T02:03:40.802Z update_progress INFO "Update a77213 is WAITING_FOR_RESOURCES."
+2026-09-03T02:04:02.286Z update_progress INFO "Update a77213 is INITIALIZING."
+2026-09-03T02:04:19.570Z update_progress INFO "Update a77213 is RESETTING."
+2026-09-03T02:04:21.370Z update_progress INFO "Update a77213 is SETTING_UP_TABLES."
+2026-09-03T02:04:31.634Z update_progress INFO "Update a77213 is RUNNING."
+2026-09-03T02:04:31.642Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_guarded' is QUEUED."
+2026-09-03T02:04:31.663Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.scd2_contrast' is QUEUED."
+2026-09-03T02:04:31.665Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.cdc_clean' is QUEUED."
+2026-09-03T02:04:31.667Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_naive' is QUEUED."
+2026-09-03T02:04:31.821Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.cdc_clean' is STARTING."
+2026-09-03T02:04:33.889Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.cdc_clean' is RUNNING."
+2026-09-03T02:04:34.168Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_naive' is STARTING."
+2026-09-03T02:04:34.898Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_naive' is RUNNING."
+2026-09-03T02:04:41.442Z flow_progress   INFO "Completed a streaming update of 'dlt_scd2_demo.demo.cdc_clean'."
+2026-09-03T02:04:41.719Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.cdc_clean' has COMPLETED."
+2026-09-03T02:04:42.517Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_guarded' is STARTING."
+2026-09-03T02:04:43.261Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_guarded' is RUNNING."
+2026-09-03T02:04:50.440Z flow_progress   INFO "Completed a streaming update of 'dlt_scd2_demo.demo.dim_orders_naive'."
+2026-09-03T02:04:50.482Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_naive' has COMPLETED."
+2026-09-03T02:04:53.241Z flow_progress   INFO "Completed a streaming update of 'dlt_scd2_demo.demo.dim_orders_guarded'."
+2026-09-03T02:04:53.263Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.dim_orders_guarded' has COMPLETED."
+2026-09-03T02:04:53.276Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.scd2_contrast' is PLANNING."
+2026-09-03T02:04:54.316Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.scd2_contrast' is STARTING."
+2026-09-03T02:04:54.462Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.scd2_contrast' is RUNNING."
+2026-09-03T02:04:57.740Z flow_progress   INFO "Flow 'dlt_scd2_demo.demo.scd2_contrast' has COMPLETED."
+2026-09-03T02:04:57.809Z update_progress INFO "Update a77213 is COMPLETED."
+Update ID: a7721367-b41c-4c8e-8261-a680ad670b5f
 
 --- 3. The contrast: the CURRENT row of each dimension ---
 $ SELECT dimension, order_id, order_status, order_updated_at FROM dlt_scd2_demo.demo.scd2_contrast ORDER BY dimension, order_id
-
-  dimension           order_id  order_status  order_updated_at
-  guarded (checks)    1         SHIPPED       2026-09-01T10:00:00Z   <- correct: newest source time won
-  guarded (checks)    2         PENDING       2026-09-01T09:10:00Z
-  naive (no checks)   1         PENDING       2026-09-01T09:00:00Z   <- wrong: late 11:05 arrival won on ingested_at
-  naive (no checks)   2         PENDING       2026-09-01T09:10:00Z
-  naive (no checks)   NULL      GARBAGE       2026-09-01T09:20:00Z   <- null-key row leaked in (no expectation)
+    guarded (checks)	1	SHIPPED	2026-09-01T10:00:00.000Z
+    guarded (checks)	2	PENDING	2026-09-01T09:10:00.000Z
+    naive (no checks)	1	PENDING	2026-09-01T09:00:00.000Z
+    naive (no checks)	2	PENDING	2026-09-01T09:10:00.000Z
+    naive (no checks)		GARBAGE	2026-09-01T09:20:00.000Z
 
 ==================================================================
  naive:   order_id=1 -> PENDING (won on ingestion/arrival order) + a NULL-key row

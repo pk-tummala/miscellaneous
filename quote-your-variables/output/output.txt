@@ -1,0 +1,23 @@
+# Captured from a real run: bash run.sh  (T1 - runs anywhere, no account, idempotent, safe in a temp dir)
+
+=== 1. A space in a filename:  rm $file   vs   rm "$file" ===
+  rm $file    -> survivors: [Q3 report.csv]   (deleted the WRONG two; target survived)
+  rm "$file"  -> survivors: [Q3] [report.csv]   (deleted exactly the target)
+
+=== 2. Passing arguments:  $@   vs   "$@" ===
+  args: "Q3 report.csv" "April data.csv"
+  $@    -> received 4 arg(s): [Q3] [report.csv] [April] [data.csv] 
+  "$@"  -> received 2 arg(s): [Q3 report.csv] [April data.csv] 
+
+=== 3. A value that contains a glob:  echo $v   vs   echo "$v" ===
+  echo $v    -> a.csv b.csv c.csv   (glob-expanded to matching files)
+  echo "$v"  -> *.csv           (literal, as intended)
+
+=== 4. set -u catches the typo before it targets the wrong path ===
+  intent: rm -rf "/srv/$target/cache"  - but you typed $taget
+  no set -u: $taget is empty -> rm -rf "/srv//cache"  (silent, dangerous)
+  set -u:    unbound variable  <- caught, script stops
+
+==================================================================
+ Always quote: "$var"  "$@"  "${arr[@]}".  Add set -u.  Unquoted = word-split + glob.
+==================================================================
