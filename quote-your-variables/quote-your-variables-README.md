@@ -75,7 +75,8 @@ bash run.sh
 ```
 
 No account, no dependencies beyond bash. Everything happens in a throwaway temp dir that is cleaned
-up on exit, so it is safe to re-run. Output is in `output/output.txt`.
+up on exit, so it is safe to re-run. The script tees its own output to `output/output.txt`, so your
+local run is captured automatically.
 
 ## Files
 

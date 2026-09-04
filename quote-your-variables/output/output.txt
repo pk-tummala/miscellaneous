@@ -1,4 +1,3 @@
-# Captured from a real run: bash run.sh  (T1 - runs anywhere, no account, idempotent, safe in a temp dir)
 
 === 1. A space in a filename:  rm $file   vs   rm "$file" ===
   rm $file    -> survivors: [Q3 report.csv]   (deleted the WRONG two; target survived)
