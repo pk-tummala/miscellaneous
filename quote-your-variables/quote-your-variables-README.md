@@ -84,9 +84,3 @@ quote-your-variables/
 |-- run.sh                the four traps, buggy vs fixed, in a safe temp dir
 |-- output/output.txt     captured real run
 ```
-
----
-
-*Verified against the GNU Bash Reference Manual: Word Splitting (IFS, unquoted expansions), Shell
-Expansions (order; only brace/word-splitting/filename expansion change the word count; exceptions
-`"$@"` and `"${name[@]}"`), Special Parameters (`"$@"` vs `"$*"`), and `set -u` / nounset.*
