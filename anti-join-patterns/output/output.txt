@@ -1,0 +1,21 @@
+PART 1 - a NULL in the SUBQUERY
+data:     orders.customer_id = [1, 2, NULL]     question: which customers have NO order?  (expect 3 Carol, 4 Dave)
+
+  NOT EXISTS                               -> 3 Carol, 4 Dave
+  LEFT JOIN ... IS NULL (anti-join)        -> 3 Carol, 4 Dave
+  EXCEPT (set difference, NULL-safe)       -> 3, 4
+  NOT IN (raw subquery)                    -> (no rows)
+  NOT IN (WHERE customer_id IS NOT NULL)   -> 3 Carol, 4 Dave
+
+PART 2 - a NULL in the OUTER (probe) value
+data:     leads.id = [1, 2, NULL]   contacted.id = [1]   question: which leads were NOT contacted?
+
+  NOT EXISTS                               -> 2, NULL
+  LEFT JOIN ... IS NULL                    -> 2, NULL
+  NOT IN (contacted has NO NULLs)          -> 2
+
+========================================================================
+ Subquery NULL: NOT IN -> zero rows; the others are correct.
+ Outer NULL:    NOT IN drops the NULL-keyed row; NOT EXISTS / LEFT JOIN keep it.
+ Default to NOT EXISTS - NULL-safe on both sides, and the optimizer anti-joins it.
+========================================================================
