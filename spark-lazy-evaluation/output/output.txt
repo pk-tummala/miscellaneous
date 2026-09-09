@@ -1,0 +1,20 @@
+PART A - transformations plan; the action executes
+  build the transformation chain:     83.0 ms   (nothing computed - just a plan)
+  the count() action (10,000,000 rows):    453.8 ms   (this is where the work happened)
+
+PART B - without cache, every action re-runs the whole lineage
+  transform built, no action:     UDF ran 0 times   (lazy - nothing ran)
+  after action 1 (collect):       UDF ran 5 times
+  after action 2 (collect):       UDF ran 10 times   <- re-ran the whole lineage
+  ... now with .cache():
+  after action 1 (materialises):  UDF ran 5 times
+  after action 2 (from cache):    UDF ran 5 times   <- served from cache, no re-run
+
+PART C - a bug in a transformation surfaces only at the action
+  built dfb with a faulty transformation - no error yet (lazy)
+  the action raised: PythonException   <- the bug appeared only when the action ran
+
+========================================================================
+ Transformations PLAN (instant, lazy).  Actions EXECUTE (do the work).
+ Reused DataFrame + multiple actions -> cache(), or you recompute the lineage each time.
+========================================================================
