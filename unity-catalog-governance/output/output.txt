@@ -1,0 +1,27 @@
+==================================================================
+ Unity Catalog governance  |  profile=vic-dev  warehouse=5378aa087539b0fe  owner=pk_tummala@yahoo.com
+==================================================================
+
+--- 1. Three-level namespace: catalog -> schema -> table (created fresh, idempotent) ---
+  built gov_demo.sales.orders_bronze  (fully-qualified 3-level name)
+
+--- 2. Least-privilege grant + inheritance (in prod: grant to an account GROUP, not a user) ---
+  granted USE CATALOG + USE SCHEMA + SELECT (read needs all three). SELECT-on-schema inherits to every table:
+    pk_tummala@yahoo.com	SELECT	SCHEMA	gov_demo.sales
+    pk_tummala@yahoo.com	USE SCHEMA	SCHEMA	gov_demo.sales
+
+--- 3. Ownership (every securable has an owner; in prod, own by a group) ---
+    gov_demo	sales	pk_tummala@yahoo.com
+
+--- 4. Lineage comes free: a downstream table, captured automatically by Unity Catalog ---
+  created orders_silver from orders_bronze -> lineage recorded automatically.
+  $ SELECT source_table_full_name, target_table_full_name FROM system.access.table_lineage ...
+
+--- 5. Tighten later without a migration: REVOKE, and the change is instant ---
+  revoked SELECT. Grants now:
+    pk_tummala@yahoo.com	USE SCHEMA	SCHEMA	gov_demo.sales
+
+==================================================================
+ Governance was part of the build: named 3-level objects, least-privilege grants that
+ inherit, clear ownership, automatic lineage. Nothing bolted on, nothing to migrate.
+==================================================================
